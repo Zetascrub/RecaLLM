@@ -1,23 +1,24 @@
 import os
 import pty
-import threading
 import requests
 import sys
 import select
 from datetime import datetime
 from collections import deque
+from typing import Deque
 
 # ───── Config ─────
 VERSION = "0.1.0"
 HISTORY_FILE = "terminal_history.log"
 CONTEXT_LINES = 100
 LLM_TRIGGER_PREFIX = "--"
-OLLAMA_URL = "http://192.168.8.10:11434/api/generate"
-OLLAMA_MODEL = "llama3.2"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://192.168.8.10:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 history_buffer = deque(maxlen=500)
 
 # ───── Prompt Banner ─────
-def print_banner():
+def print_banner() -> None:
+    """Display the program banner."""
     print(rf"""
 
 __________                     .__  .__           
@@ -31,7 +32,8 @@ __________                     .__  .__
     """)
 
 # ───── Logging ─────
-def log_line(line):
+def log_line(line: str) -> None:
+    """Persist a line of terminal output with a timestamp."""
     timestamp = datetime.now().isoformat()
     clean = line.strip()
     history_buffer.append(f"{timestamp} {clean}")
@@ -39,7 +41,8 @@ def log_line(line):
         f.write(f"{timestamp} {clean}\n")
 
 # ───── LLM Call ─────
-def ask_llm(query, context):
+def ask_llm(query: str, context: str) -> str:
+    """Send the query and context to the LLM and return its response."""
     system_prompt = (
         "You are Recallm, a command-line assistant. Your job is to review the terminal context "
         "and give precise, practical commands the user can run next.\n"
@@ -68,7 +71,8 @@ def ask_llm(query, context):
 
 
 # ───── Main Shell Loop ─────
-def run_shell():
+def run_shell() -> None:
+    """Spawn a bash shell and handle LLM queries."""
     pid, fd = pty.fork()
 
     if pid == 0:
@@ -104,15 +108,22 @@ def run_shell():
             pass
 
 # ───── Entrypoint ─────
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point executed when running the script directly."""
     if "--help" in sys.argv:
         print_banner()
-        print("Usage:\n  recallm.py        Start Recallm\n  --help            Show this message\n  --version         Show version")
-        sys.exit(0)
-    elif "--version" in sys.argv:
+        print(
+            "Usage:\n  recallm.py        Start Recallm\n  --help            Show this message\n  --version         Show version"
+        )
+        return
+    if "--version" in sys.argv:
         print(f"Recallm version {VERSION}")
-        sys.exit(0)
+        return
 
     print_banner()
     print("💬 Type shell commands normally. Prefix questions with `--` to ask the AI.")
     run_shell()
+
+
+if __name__ == "__main__":
+    main()
